@@ -7,109 +7,123 @@
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-    body { background: #f0f2f5; display: flex; justify-content: center; padding: 20px; }
-    .app-container { width: 100%; max-width: 500px; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    .header { background: #0084ff; color: white; padding: 15px; text-align: center; font-weight: bold; }
-    .login-screen { padding: 20px; text-align: center; }
-    .login-screen input, .input-area input { padding: 10px; border: 1px solid #ccc; border-radius: 5px; margin-bottom: 10px; width: 100%; }
-    .login-screen button, .input-area button { padding: 10px 20px; background: #0084ff; color: white; border: none; border-radius: 5px; cursor: pointer; }
-    .chat-screen { display: none; flex-direction: column; height: 500px; }
-    .messages-list { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-    .message { max-width: 80%; padding: 10px; border-radius: 10px; font-size: 0.9rem; }
-    .message.my { background: #0084ff; color: white; align-self: flex-end; }
-    .message.other { background: #e4e6eb; color: black; align-self: flex-start; }
-    .message .author { font-size: 0.75rem; opacity: 0.7; margin-bottom: 3px; }
-    .input-area { padding: 10px; display: flex; gap: 10px; border-top: 1px solid #eee; }
+    body { background: #f0f2f5; display: flex; justify-content: center; height: 100vh; }
+    .chat-container { width: 100%; max-width: 480px; background: #fff; display: flex; flex-direction: column; height: 100vh; }
+    .header { background: #007bff; color: white; padding: 15px; text-align: center; font-weight: bold; }
+    .login-screen { padding: 20px; display: flex; flex-direction: column; gap: 10px; margin-top: 50px; }
+    .login-screen input, .input-area input { padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; }
+    .login-screen button, .input-area button { padding: 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; }
+    .messages-area { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+    .message { max-width: 80%; padding: 10px 14px; border-radius: 12px; font-size: 15px; word-break: break-word; }
+    .message.my { background: #007bff; color: white; align-self: flex-end; }
+    .message.other { background: #e4e6eb; color: #000; align-self: flex-start; }
+    .message .sender { font-size: 11px; opacity: 0.8; margin-bottom: 3px; font-weight: bold; }
+    .input-area { padding: 10px; border-top: 1px solid #eee; display: flex; gap: 8px; background: #fff; }
+    .input-area input { flex: 1; }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
 
-<div class="app-container">
+<div class="chat-container">
   <div class="header">Hjorten Chat</div>
 
-  <!-- Prisijungimo langas -->
   <div id="loginScreen" class="login-screen">
-    <h3>Sveiki! Įveskite savo vardą:</h3>
-    <input type="text" id="userNameInput" placeholder="Tavo vardas">
-    <button id="loginBtn" type="button">Prisijungti</button>
+    <input type="text" id="usernameInput" placeholder="Įveskite savo vardą...">
+    <button onclick="login()">Prisijungti</button>
   </div>
 
-  <!-- Pokalbių langas -->
-  <div id="chatScreen" class="chat-screen">
-    <div id="messagesList" class="messages-list"></div>
-    <div class="input-area">
-      <input type="text" id="messageInput" placeholder="Rašykite žinutę...">
-      <button id="sendBtn" type="button">Siųsti</button>
-    </div>
+  <div id="chatScreen" class="messages-area hidden"></div>
+
+  <div id="inputScreen" class="input-area hidden">
+    <input type="text" id="messageInput" placeholder="Rašykite žinutę...">
+    <button onclick="sendMessage()">Siųsti</button>
   </div>
 </div>
 
 <script>
   const SUPABASE_URL = 'https://ufjjvcynafhyliznrwir.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_O5-F88q6Ygah-f6YPCthGw_LfvdA6yZ';
-  
-  // Sukuriame Supabase klientą naudojant unpkg biblioteką
-  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   let currentUser = '';
 
-  document.getElementById('loginBtn').onclick = function() {
-    const input = document.getElementById('userNameInput');
-    if (!input || !input.value.trim()) {
-      alert('Įveskite vardą!');
+  function login() {
+    const name = document.getElementById('usernameInput').value.trim();
+    if (!name) return alert('Įveskite vardą');
+    currentUser = name;
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('chatScreen').classList.remove('hidden');
+    document.getElementById('inputScreen').classList.remove('hidden');
+    loadMessages();
+    
+    supabaseClient
+      .channel('public:messages')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+        appendMessage(payload.new);
+      })
+      .subscribe();
+  }
+
+  async function loadMessages() {
+    const { data, error } = await supabaseClient
+      .from('messages')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Klaida užkraunant žinutes:', error);
       return;
     }
 
-    currentUser = input.value.trim();
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('chatScreen').style.display = 'flex';
+    const chatScreen = document.getElementById('chatScreen');
+    chatScreen.innerHTML = '';
+    if (data) {
+      data.forEach(msg => appendMessage(msg));
+    }
+  }
 
-    loadMessages();
-    subscribeToMessages();
-  };
-
-  document.getElementById('sendBtn').onclick = async function() {
+  async function sendMessage() {
     const input = document.getElementById('messageInput');
     const text = input.value.trim();
     if (!text) return;
 
     input.value = '';
-    await db.from('messages').insert([{ user_name: currentUser, text: text }]);
-  };
 
-  async function loadMessages() {
-    const { data, error } = await db.from('messages').select('*').order('id', { ascending: true });
-    if (data) {
-      document.getElementById('messagesList').innerHTML = '';
-      data.forEach(msg => renderMessage(msg));
-      scrollToBottom();
+    const { data, error } = await supabaseClient
+      .from('messages')
+      .insert([{ user_name: currentUser, text: text }])
+      .select();
+
+    if (error) {
+      alert('Klaida siunčiant: ' + error.message);
+    } else if (data && data.length > 0) {
+      appendMessage(data[0]);
     }
   }
 
-  function renderMessage(msg) {
-    const list = document.getElementById('messagesList');
+  function appendMessage(msg) {
+    const chatScreen = document.getElementById('chatScreen');
+    
+    if (document.getElementById('msg-' + msg.id)) return;
+
     const div = document.createElement('div');
-    const isMy = msg.user_name === currentUser;
+    div.id = 'msg-' + msg.id;
+    div.className = 'message ' + (msg.user_name === currentUser ? 'my' : 'other');
 
-    div.className = `message ${isMy ? 'my' : 'other'}`;
-    div.innerHTML = `<div class="author">${msg.user_name}</div><div>${msg.text}</div>`;
+    const sender = document.createElement('div');
+    sender.className = 'sender';
+    sender.textContent = msg.user_name;
 
-    list.appendChild(div);
-    scrollToBottom();
-  }
+    const body = document.createElement('div');
+    body.textContent = msg.text;
 
-  function subscribeToMessages() {
-    db.channel('public:messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-        renderMessage(payload.new);
-      })
-      .subscribe();
-  }
-
-  function scrollToBottom() {
-    const list = document.getElementById('messagesList');
-    list.scrollTop = list.scrollHeight;
+    div.appendChild(sender);
+    div.appendChild(body);
+    chatScreen.appendChild(div);
+    chatScreen.scrollTop = chatScreen.scrollHeight;
   }
 </script>
+
 </body>
 </html>
