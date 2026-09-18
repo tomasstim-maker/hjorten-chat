@@ -43,7 +43,9 @@
     try {
       supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     } catch (e) {
-      throw new Error("Nepavyko sukurti Supabase kliento: " + e.message);
+      const errDiv = document.getElementById('errorLog');
+      errDiv.style.display = 'block';
+      errDiv.textContent += "Nepavyko sukurti Supabase kliento: " + e.message + "\n";
     }
 
     const currentUser = 'Gedas';
@@ -96,7 +98,7 @@
       div.className = 'message ' + (msg.user_name === currentUser ? 'my' : 'other');
 
       const sender = document.createElement('div');
-      sender.className.sender = 'sender';
+      sender.className = 'sender';
       sender.textContent = msg.user_name;
 
       const body = document.createElement('div');
