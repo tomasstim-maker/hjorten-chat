@@ -109,6 +109,7 @@
     const chatScreen = document.getElementById('chatScreen');
     if (document.getElementById('msg-' + msg.id)) return;
 
+
     const div = document.createElement('div');
     div.id = 'msg-' + msg.id;
     div.className = 'message ' + (msg.user_name === currentUser ? 'my' : 'other');
