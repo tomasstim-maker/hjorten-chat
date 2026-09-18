@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hjorten Chat</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
     body { background: #f0f2f5; display: flex; justify-content: center; padding: 20px; }
@@ -31,7 +31,7 @@
   <div id="loginScreen" class="login-screen">
     <h3>Sveiki! Įveskite savo vardą:</h3>
     <input type="text" id="userNameInput" placeholder="Tavo vardas">
-    <button onclick="startChat()">Prisijungti</button>
+    <button id="loginBtn" type="button">Prisijungti</button>
   </div>
 
   <!-- Pokalbių langas -->
@@ -39,47 +39,51 @@
     <div id="messagesList" class="messages-list"></div>
     <div class="input-area">
       <input type="text" id="messageInput" placeholder="Rašykite žinutę...">
-      <button onclick="sendMessage()">Siųsti</button>
+      <button id="sendBtn" type="button">Siųsti</button>
     </div>
   </div>
 </div>
 
 <script>
   const SUPABASE_URL = 'https://ufjjvcynafhyliznrwir.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_05-F6Ygah-f6YPCThGw_LfvdA6yZ';
-  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const SUPABASE_KEY = 'sb_publishable_O5-F88q6Ygah-f6YPCthGw_LfvdA6yZ';
+  
+  // Sukuriame Supabase klientą naudojant unpkg biblioteką
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   let currentUser = '';
 
-  async function startChat() {
+  document.getElementById('loginBtn').onclick = function() {
     const input = document.getElementById('userNameInput');
-    if (!input || !input.value.trim()) return alert('Įveskite vardą!');
+    if (!input || !input.value.trim()) {
+      alert('Įveskite vardą!');
+      return;
+    }
 
     currentUser = input.value.trim();
-
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('chatScreen').style.display = 'flex';
 
     loadMessages();
     subscribeToMessages();
-  }
+  };
 
-  async function loadMessages() {
-    const { data, error } = await supabase.from('messages').select('*').order('id', { ascending: true });
-    if (data) {
-      document.getElementById('messagesList').innerHTML = '';
-      data.forEach(msg => renderMessage(msg));
-      scrollToBottom();
-    }
-  }
-
-  async function sendMessage() {
+  document.getElementById('sendBtn').onclick = async function() {
     const input = document.getElementById('messageInput');
     const text = input.value.trim();
     if (!text) return;
 
     input.value = '';
-    await supabase.from('messages').insert([{ user_name: currentUser, text: text }]);
+    await db.from('messages').insert([{ user_name: currentUser, text: text }]);
+  };
+
+  async function loadMessages() {
+    const { data, error } = await db.from('messages').select('*').order('id', { ascending: true });
+    if (data) {
+      document.getElementById('messagesList').innerHTML = '';
+      data.forEach(msg => renderMessage(msg));
+      scrollToBottom();
+    }
   }
 
   function renderMessage(msg) {
@@ -95,7 +99,7 @@
   }
 
   function subscribeToMessages() {
-    supabase.channel('public:messages')
+    db.channel('public:messages')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
         renderMessage(payload.new);
       })
