@@ -3,130 +3,103 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hjorten Chat</title>
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <title>Čatas</title>
   <style>
-    body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding: 0; display: flex; justify-content: center; }
-    .chat-container { width: 100%; max-width: 480px; background: #fff; display: flex; flex-direction: column; min-height: 100vh; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-    .header { background: #007bff; color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 18px; }
-    .login-screen { padding: 30px 20px; display: flex; flex-direction: column; gap: 15px; }
-    .login-screen input, .input-area input { padding: 14px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; width: 100%; }
-    .login-screen button, .input-area button { padding: 14px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold; }
-    .messages-area { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #fafafa; max-height: calc(100vh - 130px); }
-    .message { max-width: 80%; padding: 10px 14px; border-radius: 12px; font-size: 15px; word-break: break-word; }
-    .message.my { background: #007bff; color: white; align-self: flex-end; }
-    .message.other { background: #e4e6eb; color: #000; align-self: flex-start; }
-    .message .sender { font-size: 11px; opacity: 0.8; margin-bottom: 3px; font-weight: bold; }
-    .input-area { padding: 12px; border-top: 1px solid #eee; display: flex; gap: 8px; background: #fff; position: sticky; bottom: 0; }
-    .hidden { display: none !important; }
+    body { font-family: sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; background: #f0f2f5; }
+    #chatScreen { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+    .message { max-width: 70%; padding: 10px; border-radius: 8px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+    .message.my { align-self: flex-end; background: #dcf8c6; }
+    .message.other { align-self: flex-start; }
+    .sender { font-size: 0.75rem; color: #666; margin-bottom: 3px; font-weight: bold; }
+    .body { font-size: 0.95rem; word-break: break-word; }
+    #inputArea { display: flex; padding: 10px; background: #fff; border-top: 1px solid #ddd; }
+    #inputArea input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; outline: none; }
+    #inputArea button { margin-left: 10px; padding: 10px 20px; border: none; background: #0084ff; color: #fff; border-radius: 4px; cursor: pointer; }
   </style>
 </head>
 <body>
 
-<div class="chat-container">
-  <div class="header">Hjorten Chat</div>
+  <div id="chatScreen"></div>
 
-  <div id="loginScreen" class="login-screen">
-    <h3>Prisijungimas prie čato</h3>
-    <input type="text" id="usernameInput" placeholder="Įveskite savo vardą...">
-    <button onclick="login()">Prisijungti</button>
-  </div>
-
-  <div id="chatScreen" class="messages-area hidden"></div>
-
-  <div id="inputScreen" class="input-area hidden">
-    <input type="text" id="messageInput" placeholder="Rašykite žinutę..." onkeypress="handleKeyPress(event)">
+  <div id="inputArea">
+    <input type="text" id="messageInput" placeholder="Rašykite žinutę...">
     <button onclick="sendMessage()">Siųsti</button>
   </div>
-</div>
 
-<script>
-  const SUPABASE_URL = 'https://ufjjvcynafhyiyznrwir.supabase.co/rest/v1/
-  const SUPABASE_KEY = 'sb_publishable_O5-F88q6Ygah-f6YPCthGw_LfvdA6yZ';
-  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = 'https://ufjjvcynafhiyiznrwir.supabase.co';
+    const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY'; // Įsirašyk savo raktą, jei reikalinga
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  let currentUser = '';
+    const currentUser = 'Gedas';
 
-  function login() {
-    const name = document.getElementById('usernameInput').value.trim();
-    if (!name) return alert('Įveskite vardą!');
-    currentUser = name;
-    document.getElementById('loginScreen').classList.add('hidden');
-    document.getElementById('chatScreen').classList.remove('hidden');
-    document.getElementById('inputScreen').classList.remove('hidden');
+    async function loadMessages() {
+      const { data, error } = await supabaseClient
+        .from('messages')
+        .select('*')
+        .order('id', { ascending: true });
+
+      if (error) {
+        console.error('Klaida kraunant:', error.message);
+        return;
+      }
+
+      document.getElementById('chatScreen').innerHTML = '';
+      if (data) {
+        data.forEach(msg => appendMessage(msg));
+      }
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('messageInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      input.value = '';
+
+      const { data, error } = await supabaseClient
+        .from('messages')
+        .insert([{ user_name: currentUser, text: text }])
+        .select();
+
+      if (error) {
+        alert('Klaida siunčiant: ' + error.message);
+      } else if (data && data.length > 0) {
+        appendMessage(data[0]);
+      }
+    }
+
+    function appendMessage(msg) {
+      const chatScreen = document.getElementById('chatScreen');
+      if (document.getElementById('msg-' + msg.id)) return;
+
+      const div = document.createElement('div');
+      div.id = 'msg-' + msg.id;
+      div.className = 'message ' + (msg.user_name === currentUser ? 'my' : 'other');
+
+      const sender = document.createElement('div');
+      sender.className = 'sender';
+      sender.textContent = msg.user_name;
+
+      const body = document.createElement('div');
+      body.className = 'body';
+      body.textContent = msg.text;
+
+      div.appendChild(sender);
+      div.appendChild(body);
+      chatScreen.appendChild(div);
+      chatScreen.scrollTop = chatScreen.scrollHeight;
+    }
+
     loadMessages();
-    
+
     supabaseClient
       .channel('public:messages')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
         appendMessage(payload.new);
       })
       .subscribe();
-  }
-
-  function handleKeyPress(e) {
-    if (e.key === 'Enter') sendMessage();
-  }
-
-  async function loadMessages() {
-    const { data, error } = await supabaseClient
-      .from('messages')
-      .select('*')
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      console.error('Klaida:', error);
-      return;
-    }
-
-    const chatScreen = document.getElementById('chatScreen');
-    chatScreen.innerHTML = '';
-    if (data) {
-      data.forEach(msg => appendMessage(msg));
-    }
-  }
-
-  async function sendMessage() {
-    const input = document.getElementById('messageInput');
-    const text = input.value.trim();
-    if (!text) return;
-
-    input.value = '';
-
-    const { data, error } = await supabaseClient
-      .from('messages')
-      .insert([{ user_name: currentUser, text: text }])
-      .select();
-
-    if (error) {
-      alert('Klaida siunčiant: ' + error.message);
-    } else if (data && data.length > 0) {
-      appendMessage(data[0]);
-    }
-  }
-
-  function appendMessage(msg) {
-    const chatScreen = document.getElementById('chatScreen');
-    if (document.getElementById('msg-' + msg.id)) return;
-
-
-    const div = document.createElement('div');
-    div.id = 'msg-' + msg.id;
-    div.className = 'message ' + (msg.user_name === currentUser ? 'my' : 'other');
-
-    const sender = document.createElement('div');
-    sender.className = 'sender';
-    sender.textContent = msg.user_name;
-
-    const body = document.createElement('div');
-    body.textContent = msg.text;
-
-    div.appendChild(sender);
-    div.appendChild(body);
-    chatScreen.appendChild(div);
-    chatScreen.scrollTop = chatScreen.scrollHeight;
-  }
-</script>
-
+  </script>
 </body>
 </html>
