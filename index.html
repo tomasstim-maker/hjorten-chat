@@ -2,24 +2,22 @@
 <html lang="lt">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hjorten Chat</title>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-    html, body { height: 100%; width: 100%; overflow: hidden; background: #f0f2f5; }
-    .chat-container { width: 100%; height: 100vh; max-width: 480px; margin: 0 auto; background: #fff; display: flex; flex-direction: column; }
-    .header { background: #007bff; color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 18px; flex-shrink: 0; }
-    .login-screen { padding: 20px; display: flex; flex-direction: column; gap: 12px; margin-top: 40px; }
-    .login-screen input, .input-area input { padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; }
-    .login-screen button, .input-area button { padding: 12px 18px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold; }
-    .messages-area { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #fafafa; }
+    body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding: 0; display: flex; justify-content: center; }
+    .chat-container { width: 100%; max-width: 480px; background: #fff; display: flex; flex-direction: column; min-height: 100vh; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    .header { background: #007bff; color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 18px; }
+    .login-screen { padding: 30px 20px; display: flex; flex-direction: column; gap: 15px; }
+    .login-screen input, .input-area input { padding: 14px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; width: 100%; }
+    .login-screen button, .input-area button { padding: 14px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold; }
+    .messages-area { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #fafafa; max-height: calc(100vh - 130px); }
     .message { max-width: 80%; padding: 10px 14px; border-radius: 12px; font-size: 15px; word-break: break-word; }
     .message.my { background: #007bff; color: white; align-self: flex-end; }
     .message.other { background: #e4e6eb; color: #000; align-self: flex-start; }
     .message .sender { font-size: 11px; opacity: 0.8; margin-bottom: 3px; font-weight: bold; }
-    .input-area { padding: 12px; border-top: 1px solid #eee; display: flex; gap: 8px; background: #fff; flex-shrink: 0; }
-    .input-area input { flex: 1; }
+    .input-area { padding: 12px; border-top: 1px solid #eee; display: flex; gap: 8px; background: #fff; position: sticky; bottom: 0; }
     .hidden { display: none !important; }
   </style>
 </head>
@@ -29,6 +27,7 @@
   <div class="header">Hjorten Chat</div>
 
   <div id="loginScreen" class="login-screen">
+    <h3>Prisijungimas prie čato</h3>
     <input type="text" id="usernameInput" placeholder="Įveskite savo vardą...">
     <button onclick="login()">Prisijungti</button>
   </div>
@@ -36,7 +35,7 @@
   <div id="chatScreen" class="messages-area hidden"></div>
 
   <div id="inputScreen" class="input-area hidden">
-    <input type="text" id="messageInput" placeholder="Rašykite žinutę...">
+    <input type="text" id="messageInput" placeholder="Rašykite žinutę..." onkeypress="handleKeyPress(event)">
     <button onclick="sendMessage()">Siųsti</button>
   </div>
 </div>
@@ -50,7 +49,7 @@
 
   function login() {
     const name = document.getElementById('usernameInput').value.trim();
-    if (!name) return alert('Įveskite vardą');
+    if (!name) return alert('Įveskite vardą!');
     currentUser = name;
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('chatScreen').classList.remove('hidden');
@@ -65,6 +64,10 @@
       .subscribe();
   }
 
+  function handleKeyPress(e) {
+    if (e.key === 'Enter') sendMessage();
+  }
+
   async function loadMessages() {
     const { data, error } = await supabaseClient
       .from('messages')
@@ -72,7 +75,7 @@
       .order('created_at', { ascending: true });
 
     if (error) {
-      console.error('Klaida užkraunant žinutes:', error);
+      console.error('Klaida:', error);
       return;
     }
 
